@@ -1,0 +1,133 @@
+# Docker Dev Config for LINUX DO Credit
+
+# App
+app:
+  app_name: "linux-do-credit"
+  env: "development" # development, testing, production
+  addr: ":8000"
+  node_id: 1  # 分布式节点 ID (0-1023)，不同实例必须不同
+  graceful_shutdown_timeout: 30
+  session_cookie_name: "linux_do_credit_session_id" # change this in local dev env
+  session_secret: "dev-session-secret" # you can't change this after first time start
+  session_domain: "localhost"
+  session_age: 86400
+  session_secure: false
+  session_http_only: false
+  api_prefix: "/api"
+  frontend_pay_url: "http://localhost:8080/paying"
+
+# OAuth2/OIDC(优先)
+oauth2:
+  # https://connect.linux.do/dash/sso
+  client_id: "<LINUX_DO_OAUTH2_CLIENT_ID>"
+  client_secret: "<LINUX_DO_OAUTH2_CLIENT_SECRET>"
+  redirect_uri: "http://localhost:8080/login"
+  issuer: "https://connect.linux.do/"  # OIDC Issuer URL，用于自动发现端点
+  authorization_endpoint: "https://connect.linux.do/oauth2/authorize"
+  token_endpoint: "https://connect.linux.do/oauth2/token"
+  user_endpoint: "https://connect.linux.do/api/user"
+
+# DB
+# 支持两种模式：Standalone（单节点）、Primary-Replica（读写分离）
+database:
+  enabled: true
+  host: "postgres"
+  port: 5432
+  username: "postgres_user"
+  password: "postgres_pwd"
+  database: "linux_do_credit"
+  max_idle_conn: 16
+  max_open_conn: 128
+  conn_max_lifetime: 1800
+  conn_max_idle_time: 600
+  log_level: "info"  # error, warn, info, debug, silent
+  ssl_mode: "disable"
+  time_zone: "Asia/Shanghai"
+  application_name: "pay-server"
+  # pgb改为true,默认false
+  prefer_simple_protocol: false
+  search_path: "public"
+  statement_cache_capacity: 256
+  default_query_exec_mode: "cache_statement"
+  # replicas:
+  #   - host: "replica1.db.local"
+  #     port: 5432
+  #   - host: "replica2.db.local"
+  #     port: 5432
+
+# clickhouse
+clickhouse:
+  enabled: false
+  hosts:
+    - "127.0.0.1:9000"
+  username: "default"
+  password: ""
+  database: "linux_do_credit"
+  max_idle_conn: 10
+  max_open_conn: 100
+  conn_max_lifetime: 3600
+  dial_timeout: 5
+  block_buffer_size: 10
+
+# Redis
+# 支持三种模式：Standalone（单节点）、Sentinel（高可用）、Cluster（水平扩展）
+redis:
+  enabled: true
+  addrs:
+    - "redis:6379"
+  username: ""
+  password: "redis_pwd"
+  db: 0                    # Cluster 模式忽略此项
+  cluster_mode: false      # true 启用 Cluster 模式
+  master_name: ""          # 非空启用 Sentinel 模式
+  key_prefix: "credit:"
+  pool_size: 100
+  min_idle_conn: 10
+  dial_timeout: 5
+  read_timeout: 3
+  write_timeout: 3
+  max_retries: 3
+  pool_timeout: 4
+  conn_max_idle_time: 300
+
+# Log
+log:
+  level: "info"  # debug, info, warn, error, fatal, panic
+  format: "json"  # text, json
+  output: "stdout"  # stdout, file
+  file_path: "./logs/app.log"
+  max_size: 100
+  max_age: 30
+  max_backups: 10
+  compress: true
+
+# Scheduler
+scheduler:
+  update_user_gamification_scores_task_cron: "0 2 * * *"
+  dispute_auto_refund_dispatch_interval_seconds: 3
+  auto_refund_expired_disputes_task_cron: "0 0 * * *"
+  sync_orders_to_clickhouse_task_cron: "10 0 * * *"
+
+# Worker
+worker:
+  concurrency: 20
+  strict_priority: false
+  queues:
+    - name: webhook
+      priority: 10
+    - name: whitelist_only
+      priority: 5
+    - name: default
+      priority: 3
+  # 积分更新速率限制：rate 次/period 秒
+  gamification_score_rate_limit:
+    rate: 1     # 允许的请求次数
+    period: 3   # 时间周期（秒）
+
+# linuxDo
+linuxDo:
+  api_key: "<LINUX_DO_API_KEY>"
+
+# OpenTelemetry
+otel:
+  sampling_rate: 0.1  # 采样率 0.0-1.0
